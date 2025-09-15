@@ -35,6 +35,10 @@ struct TGAColor
     std::uint8_t bgra[4] = {0, 0, 0, 0};
     std::uint8_t bytespp = 4;
     std::uint8_t &operator[](const int i) { return bgra[i]; }
+
+    TGAColor() = default;
+    constexpr TGAColor(std::uint8_t R, std::uint8_t G, std::uint8_t B, std::uint8_t A, std::uint8_t bpp = 4)
+            : bgra{R, G, B, A}, bytespp(bpp) {}
 };
 
 struct TGAImage

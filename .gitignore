@@ -9,7 +9,7 @@ out/
 
 # Compiled object files
 *.o
-*.obj
+# *.obj
 *.lo
 *.la
 *.al
