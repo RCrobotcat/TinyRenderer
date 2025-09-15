@@ -1,3 +1,5 @@
+- `main.cpp` (除了main.cpp有变化，其他文件和Lesson_1完全一样)
+```cpp
 #include <cmath>
 #include <tuple>
 #include "geometry.h"
@@ -104,3 +106,5 @@ int main() {
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
 }
+
+```
