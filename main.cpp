@@ -84,6 +84,7 @@ void triangle(int ax, int ay, int az, int bx, int by, int bz, int cx, int cy, in
 
             zbuffer.set(x, y, {z}); // write the z value in the z-buffer
             // {z} uses aggregate initialization(聚合类型 => 没有自定义构造函数, 可以用列表初始化) to create a TGAColor with only the first channel set to z and the rest to 0
+            // 由于是灰度图(只有第一个通道来表示图片的灰度)，所以只需要设置第一个通道即可
             framebuffer.set(x, y, color);
         }
     }
