@@ -48,12 +48,15 @@ void lookat(const vec3 eye, const vec3 center, const vec3 up)
 
 void rasterize(const vec4 clip[3], std::vector<double> &zbuffer, TGAImage &framebuffer, const TGAColor color)
 {
+    // 三角形的3个顶点的齐次裁剪坐标
     vec4 ndc[3] = {clip[0] / clip[0].w, clip[1] / clip[1].w, clip[2] / clip[2].w}; // normalized device coordinates
     vec2 screen[3] = {(Viewport * ndc[0]).xy(), (Viewport * ndc[1]).xy(), (Viewport * ndc[2]).xy()};
     // screen coordinates
 
     mat<3, 3> ABC = {{{screen[0].x, screen[0].y, 1.}, {screen[1].x, screen[1].y, 1.}, {screen[2].x, screen[2].y, 1.}}};
     if (ABC.det() < 1) return; // backface culling + discarding triangles that cover less than a pixel
+    // 原理：ABC的行列式等于2倍的三角形面积，面积小于0说明是背面，面积小于1说明面积小于一个像素
+    // 三角形面积(有方向)：1/2 * (AB x AC)
 
     auto [bbminx,bbmaxx] = std::minmax({screen[0].x, screen[1].x, screen[2].x}); // bounding box for the triangle
     auto [bbminy,bbmaxy] = std::minmax({screen[0].y, screen[1].y, screen[2].y});
@@ -68,6 +71,9 @@ void rasterize(const vec4 clip[3], std::vector<double> &zbuffer, TGAImage &frame
             // barycentric coordinates of {x,y} w.r.t the triangle
             if (bc.x < 0 || bc.y < 0 || bc.z < 0) continue;
             // negative barycentric coordinate => the pixel is outside the triangle
+
+            // 用zbuffer[x + y * width]来存储当前像素点的深度值
+            // x + y * width的作用是将二维坐标映射到一维数组
             double z = bc * vec3{ndc[0].z, ndc[1].z, ndc[2].z};
             if (z <= zbuffer[x + y * framebuffer.width()]) continue;
             zbuffer[x + y * framebuffer.width()] = z;
@@ -90,7 +96,7 @@ int main()
     viewport(width / 16, height / 16, width * 7 / 8, height * 7 / 8); // build the Viewport    matrix
 
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    std::vector<double> zbuffer(width * height, -std::numeric_limits<double>::max());
+    std::vector<double> zbuffer(width * height, -std::numeric_limits<double>::max()); // 初始化zbuffer设置为负无穷（无限远远）
 
     for (int i = 0; i < model.nfaces(); i++)
     {
@@ -100,7 +106,7 @@ int main()
         {
             // assemble the primitive
             vec3 v = model.vert(i, d);
-            clip[d] = Perspective * ModelView * vec4{v.x, v.y, v.z, 1.};
+            clip[d] = Perspective * ModelView * vec4{v.x, v.y, v.z, 1.}; // transform to clip coordinates
         }
         TGAColor rnd;
         for (int c = 0; c < 3; c++) rnd[c] = std::rand() % 255; // random color
