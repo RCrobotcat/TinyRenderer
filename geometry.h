@@ -194,6 +194,7 @@ struct mat
         return submatrix.det() * ((row + col) % 2 ? -1 : 1);
     }
 
+    // ×ªÖÃÄæ¾ØÕó transpose of the inverse matrix
     mat<nrows, ncols> invert_transpose() const
     {
         mat<nrows, ncols> adjugate_transpose; // transpose to ease determinant computation, check the last line

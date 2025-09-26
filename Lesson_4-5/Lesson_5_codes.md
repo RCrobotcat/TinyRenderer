@@ -20,19 +20,6 @@ constexpr TGAColor yellow = {0, 200, 255, 255};
 
 mat<4, 4> ModelView, Viewport, Perspective;
 
-// 把三维模型的顶点坐标转换为屏幕上的像素点位置 (视口变换 => NDC to screen space)
-std::tuple<int, int, int> project(vec3 v)
-{
-    // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
-    return {
-        (v.x + 1.) * width / 2,
-        // Second, since the input models are scaled to have fit in the [-1,1]^3 world coordinates,
-        (v.y + 1.) * height / 2,
-        (v.z + 1.) * 255. / 2 // z is between -1 and 1
-        // with higher z values meaning closer to the camera
-    }; // we want to shift the vector (x,y) and then scale it to span the entire screen.
-}
-
 // 视口变换矩阵
 void viewport(const int x, const int y, const int w, const int h)
 {

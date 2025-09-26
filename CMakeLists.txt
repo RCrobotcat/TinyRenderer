@@ -11,4 +11,7 @@ add_executable(tinyrenderer_self main.cpp
         Model.h
         Model.h
         geometry.h
-        geometry.h)
+        geometry.h
+        gl_mine.cpp
+        gl_mine.h
+        gl_mine.h)
