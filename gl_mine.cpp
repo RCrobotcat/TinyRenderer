@@ -59,7 +59,7 @@ void rasterize(const Triangle &clip, const IShader &shader, TGAImage &framebuffe
         // clip the bounding box by the screen
         for (int y = std::max<int>(bbminy, 0); y <= std::min<int>(bbmaxy, framebuffer.height() - 1); y++)
         {
-            vec3 bc = ABC.invert_transpose() * vec3{static_cast<double>(x), static_cast<double>(y), 1.};
+            vec3 bc = ABC.invert_transpose() * vec3{static_cast<double>(x), static_cast<double>(y), 1.}; // 求得重心坐标
             // barycentric coordinates of {x,y} w.r.t the triangle
             if (bc.x < 0 || bc.y < 0 || bc.z < 0) continue;
             // negative barycentric coordinate => the pixel is outside the triangle
