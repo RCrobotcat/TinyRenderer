@@ -1,3 +1,4 @@
+```cpp
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -76,3 +77,5 @@ int main() {
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
 }
+
+```
