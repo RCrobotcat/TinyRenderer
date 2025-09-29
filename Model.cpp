@@ -7,8 +7,7 @@
 #include <sstream>
 
 // 构造函数，输入参数是.obj文件路径
-Model::Model(const std::string filename)
-{
+Model::Model(const std::string filename) {
     std::ifstream in;
     in.open(filename, std::ifstream::in); // 打开.obj文件
     if (in.fail()) return;
@@ -24,6 +23,11 @@ Model::Model(const std::string filename)
             vec3 v; // 读入顶点坐标
             for (int i: {0, 1, 2}) iss >> v[i];
             verts.push_back(v); // 加入顶点集
+        } else if (!line.compare(0, 3, "vn ")) {
+            iss >> trash >> trash;
+            vec3 n;
+            for (int i: {0, 1, 2}) iss >> n[i];
+            norms.push_back(normalized(n));
         } else if (!line.compare(0, 2, "f ")) // 如果这一行的前两个字符是“f ”的话，代表是面片数据
         {
             int f, t, n, cnt = 0;
@@ -32,6 +36,7 @@ Model::Model(const std::string filename)
             while (iss >> f >> trash >> t >> trash >> n) // 读取x/x/x格式
             {
                 facet_vrt.push_back(--f); // 只保存顶点索引，obj索引从1开始，需减1
+                facet_nrm.push_back(--n); // 只保存法线索引，obj索引从1开始，需减1
                 cnt++;
             }
             if (3 != cnt) // 检查是否为三角面
@@ -46,14 +51,17 @@ Model::Model(const std::string filename)
 }
 
 int Model::nverts() const { return verts.size(); }
+
 int Model::nfaces() const { return facet_vrt.size() / 3; }
 
-vec3 Model::vert(const int i) const
-{
+vec3 Model::vert(const int i) const {
     return verts[i];
 }
 
-vec3 Model::vert(const int iface, const int nthvert) const
-{
+vec3 Model::vert(const int iface, const int nthvert) const {
     return verts[facet_vrt[iface * 3 + nthvert]];
+}
+
+vec3 Model::normal(const int iface, const int nthvert) const {
+    return norms[facet_nrm[iface * 3 + nthvert]];
 }

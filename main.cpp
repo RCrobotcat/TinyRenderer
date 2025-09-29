@@ -6,11 +6,6 @@
 #include "model.h"
 #include "tgaimage.h"
 
-#define M_PI 3.14159265358979323846
-
-constexpr int width = 800;
-constexpr int height = 800;
-
 extern mat<4, 4> ModelView, Perspective;
 extern std::vector<double> zbuffer;
 
@@ -18,7 +13,7 @@ struct BlinnPhongShader : IShader {
     const Model &model;
     vec3 l; // light direction in eye coordinates
     vec3 eye; // eye direction in eye coordinates
-    vec3 tri[3]; // triangle in eye coordinates
+    vec3 varying_nrm[3]; // normal per vertex to be interpolated by the fragment shader
 
     BlinnPhongShader(const vec3 light, const vec3 _eye, const Model &m) : model(m) {
         l = normalized((ModelView * vec4{light.x, light.y, light.z, 0.}).xyz());
@@ -29,13 +24,18 @@ struct BlinnPhongShader : IShader {
     virtual vec4 vertex(const int face, const int vert) {
         vec3 v = model.vert(face, vert); // current vertex in object coordinates
         vec4 gl_Position = ModelView * vec4{v.x, v.y, v.z, 1.};
-        tri[vert] = gl_Position.xyz(); // in eye coordinates
+
+        vec3 n = model.normal(face, vert); // normal at that vertex
+        varying_nrm[vert] = (ModelView.invert_transpose() * vec4{n.x, n.y, n.z, 0.}).xyz();
+
         return Perspective * gl_Position; // in clip coordinates
     }
 
     virtual std::pair<bool, TGAColor> fragment(const vec3 bar) const {
         TGAColor gl_FragColor = {255, 255, 255, 255}; // output color of the fragment
-        vec3 n = normalized(cross(tri[1] - tri[0], tri[2] - tri[0])); // triangle normal in eye coordinates
+        // vec3 n = normalized(cross(tri[1] - tri[0], tri[2] - tri[0])); // triangle normal in eye coordinates
+        vec3 n = normalized(varying_nrm[0] * bar.x + varying_nrm[1] * bar.y +
+                            varying_nrm[2] * bar.z); // per-vertex normal interpolation
         vec3 h = normalized(l + eye); // half vector
         double ambient = .3; // ambient light intensity
         double diff = std::max(0., n * l); // diffuse light intensity
