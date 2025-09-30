@@ -18,7 +18,6 @@ struct BlinnPhongShader : IShader {
     BlinnPhongShader(const vec3 light, const vec3 _eye, const Model &m) : model(m) {
         l = normalized((ModelView * vec4{light.x, light.y, light.z, 0.}));
         eye = normalized((ModelView * vec4{_eye.x, _eye.y, _eye.z, 0}));
-        // transform the light and eye vectors to view coordinates
     }
 
     virtual vec4 vertex(const int face, const int vert) {
@@ -34,12 +33,17 @@ struct BlinnPhongShader : IShader {
         vec2 uv = varying_uv[0] * bar.x + varying_uv[1] * bar.y + varying_uv[2] * bar.z; // interpolate uv coordinates
         vec4 n = normalized((ModelView.invert_transpose() * model.normal(uv)));
         vec4 h = normalized(l + eye); // half vector
-        double ambient = .3; // ambient light intensity
+        vec4 d = model.diffuse(uv);
+        vec4 s = model.specular(uv);
+        double ambient = .5; // ambient light intensity
         double diff = std::max(0., n * l); // diffuse light intensity
         double spec = std::pow(std::max(n * h, 0.), 70);
         // specular intensity, note that the camera lies on the z-axis (in eye coordinates), therefore simple r.z, since (0,0,1)*(r.x, r.y, r.z) = r.z
-        for (int channel: {0, 1, 2})
+        for (int channel: {0, 1, 2}) {
             gl_FragColor[channel] *= std::min(1., ambient + .4 * diff + .9 * spec);
+            gl_FragColor[channel] *= std::min(1., (double) d[channel]);
+            gl_FragColor[channel] += std::min(0., (double) s[channel]) * spec;
+        }
         return {false, gl_FragColor}; // do not discard the pixel
     }
 };
@@ -59,7 +63,6 @@ int main() {
     init_zbuffer(width, height); // build the z-buffer
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    // PhongShader shader(light_dir, model);
     BlinnPhongShader shader(light_dir, eye, model);
     for (int f = 0; f < model.nfaces(); f++) {
         Triangle clip = {
