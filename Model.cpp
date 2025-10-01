@@ -62,7 +62,7 @@ Model::Model(const std::string filename) {
         std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed")
                   << std::endl;
     };
-    load_texture("_nm.tga", normalmap);
+    load_texture("_nm_tangent.tga", normalmap);
     load_texture("_diffuse.tga", diffusemap);
     load_texture("_spec.tga", specularmap);
 }
@@ -88,16 +88,10 @@ vec4 Model::normal(const vec2 &uv) const {
     return vec4{(double) c[2], (double) c[1], (double) c[0], 0} * 2. / 255. - vec4{1, 1, 1, 0};
 }
 
-vec4 Model::diffuse(const vec2 &uv) const {
-    TGAColor c = diffusemap.get(uv[0] * diffusemap.width(), uv[1] * diffusemap.height());
-    return vec4{(double) c[0], (double) c[1], (double) c[2], 1} * 1.8 / 255.;
-}
-
-vec4 Model::specular(const vec2 &uv) const {
-    TGAColor c = diffusemap.get(uv[0] * diffusemap.width(), uv[1] * diffusemap.height());
-    return vec4{(double) c[0], (double) c[1], (double) c[2], 1} * 2 / 255.;
-}
-
 vec2 Model::uv(const int iface, const int nthvert) const {
     return tex[facet_tex[iface * 3 + nthvert]];
 }
+
+const TGAImage &Model::diffuse() const { return diffusemap; }
+
+const TGAImage &Model::specular() const { return specularmap; }

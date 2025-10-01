@@ -37,8 +37,8 @@ public:
     // normal coming from the normal map texture => 返回iface三角形的第nthvert个顶点的法向量，法向量来自法线贴图
     vec4 normal(const vec2 &uv) const;
 
-    vec4 diffuse(const vec2 &uv) const; // 返回纹理贴图在uv处的颜色
-    vec4 specular(const vec2 &uv) const; // 返回高光贴图在uv处的颜色的r分量
+    const TGAImage &diffuse() const; // 返回纹理贴图在uv处的颜色
+    const TGAImage &specular() const; // 返回高光贴图在uv处的颜色的r分量
 
     vec2 uv(const int iface, const int nthvert) const; // 返回第iface个三角形的第nthvert个顶点的uv坐标
 };
