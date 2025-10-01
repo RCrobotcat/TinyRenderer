@@ -44,7 +44,7 @@ struct TGAImage
 
     TGAImage() = default;
 
-    TGAImage(const int w, const int h, const int bpp);
+    TGAImage(const int w, const int h, const int bpp, TGAColor c = {});
 
     bool read_tga_file(const std::string filename);
 

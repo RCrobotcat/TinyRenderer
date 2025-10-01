@@ -1,3 +1,4 @@
+```c++
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -75,7 +76,7 @@ struct BlinnPhongShader : IShader {
     }
 };
 
-// ��ȡ������z-buffer
+// 获取并保存z-buffer
 void drop_zbuffer(std::string filename, std::vector<double> &zbuffer, int width, int height) {
     TGAImage zimg(width, height, TGAImage::GRAYSCALE, {0, 0, 0, 0});
     double minz = +1000;
@@ -100,23 +101,23 @@ void drop_zbuffer(std::string filename, std::vector<double> &zbuffer, int width,
 }
 
 int main() {
-    constexpr int width = 800;    // ���ͼ���С
+    constexpr int width = 800;    // 输出图像大小
     constexpr int height = 800;
-    constexpr int shadoww = 8000;   // shadow map �ֱ���
+    constexpr int shadoww = 8000;   // shadow map 分辨率
     constexpr int shadowh = 8000;
-    constexpr vec3 light_dir{1, 1, 1};  // ��Դ����/λ��
-    constexpr vec3 eye{-1, 0, 2};       // ���λ��
-    constexpr vec3 center{0, 0, 0};     // ���Ŀ��
-    constexpr vec3 up{0, 1, 0};         // ����Ϸ���
+    constexpr vec3 light_dir{1, 1, 1};  // 光源方向/位置
+    constexpr vec3 eye{-1, 0, 2};       // 相机位置
+    constexpr vec3 center{0, 0, 0};     // 相机目标
+    constexpr vec3 up{0, 1, 0};         // 相机上方向
 
-    // ----------- ��ͨ��Ⱦ pass -----------
+    // ----------- 普通渲染 pass -----------
     lookat(eye, center, up);
     init_perspective(norm(eye - center));
     init_viewport(width / 16, height / 16, width * 7 / 8, height * 7 / 8);
     init_zbuffer(width, height);
     TGAImage framebuffer(width, height, TGAImage::RGB, {177, 195, 209, 255});
 
-    // �̶�ģ��·��
+    // 固定模型路径
     Model model_head("../Obj/diablo3_pose.obj");
     Model model_floor("../Obj/floor.obj");
 
@@ -145,7 +146,7 @@ int main() {
     framebuffer.write_tga_file("framebuffer.tga");
     drop_zbuffer("zbuffer1.tga", zbuffer, width, height);
 
-    // ----------- Shadow map ��Ⱦ pass -----------
+    // ----------- Shadow map 渲染 pass -----------
     std::vector<bool> mask(width * height, false);
     std::vector<double> zbuffer_copy = zbuffer;
     mat<4, 4> M = (Viewport * Perspective * ModelView).invert();
@@ -184,20 +185,20 @@ int main() {
     }
     drop_zbuffer("zbuffer2.tga", zbuffer, shadoww, shadowh);
 
-    // ----------- ���� pass -----------
+    // ----------- 后处理 pass -----------
     mat<4, 4> N = Viewport * Perspective * ModelView;
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             vec4 fragment = M * vec4{static_cast<double>(x), static_cast<double>(y),
                                      zbuffer_copy[x + y * width], 1.};
             vec4 q = N * fragment;
-            vec3 p = q.xyz() / q.w; // ���������������ϵ�µ�λ��
-            bool lit = (fragment.z < -100 || // ������ֱ����
-                        (p.x < 0 || p.x >= shadoww || p.y < 0 || p.y >= shadowh) || // ���� shadow map ��Χ
-                        (p.z > zbuffer[int(p.x) + int(p.y) * shadoww] - .03)); // ��� shadowmap ��������Դ => �ܹ���
-            // -0.03 ��һ�� bias����ֹ z-fighting
-            // p.z <= shadowmap_depth + bias �� ��� shadowmap ��Զ �� ����Ӱ��
-            // p.z �ķ�����: Խ��Խ�������
+            vec3 p = q.xyz() / q.w; // 像素在摄像机坐标系下的位置
+            bool lit = (fragment.z < -100 || // 背景，直接亮
+                        (p.x < 0 || p.x >= shadoww || p.y < 0 || p.y >= shadowh) || // 超出 shadow map 范围
+                        (p.z > zbuffer[int(p.x) + int(p.y) * shadoww] - .03)); // 点比 shadowmap 更靠近光源 => 受光照
+            // -0.03 是一个 bias，防止 z-fighting
+            // p.z <= shadowmap_depth + bias → 点比 shadowmap 更远 → 在阴影里
+            // p.z 的方向是: 越大越靠近相机
             mask[x + y * width] = lit;
         }
     }
@@ -206,7 +207,7 @@ int main() {
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             if (mask[x + y * width]) continue;
-            // ��Ӱ�ĵط���ʾ��ɫ
+            // 阴影的地方显示白色
             maskimg.set(x, y, {255, 255, 255, 255});
         }
     }
@@ -214,13 +215,13 @@ int main() {
 
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
-            if (mask[x + y * width]) continue; // ���㲻����
-            // ��Ӱ�㴦��
+            if (mask[x + y * width]) continue; // 亮点不处理
+            // 阴影点处理
             TGAColor c = framebuffer.get(x, y);
             vec3 a = {static_cast<double>(c[0]), static_cast<double>(c[1]),
                       static_cast<double>(c[2])};
             if (norm(a) < 80) continue;
-            a = normalized(a) * 80; // ��ɫ�䰵
+            a = normalized(a) * 80; // 颜色变暗
             framebuffer.set(x, y, {(uint8_t) a[0], (uint8_t) a[1], (uint8_t) a[2], 255});
         }
     }
@@ -228,3 +229,190 @@ int main() {
 
     return 0;
 }
+
+```
+---
+# 🌑 阴影渲染代码笔记（Shadow Mapping）
+
+这份代码实现了一个经典的 **Shadow Mapping 阴影渲染流程**，整体分为三步：
+
+1. **普通渲染（Camera pass）**
+    从相机视角渲染场景，得到颜色图和相机深度。
+2. **阴影贴图生成（Shadow map pass / Light pass）**
+    从光源视角渲染场景，得到光源深度图（shadow map）。
+3. **后处理判断（Post-process）**
+    对每个相机像素，反变换回相机空间 → 投影到光源空间 → 和 shadow map 深度比较 → 判断是否在阴影里。
+
+------
+
+## 1️⃣ 普通渲染 pass
+
+```cpp
+lookat(eye, center, up);                     // 相机视角矩阵
+init_perspective(norm(eye - center));        // 透视投影矩阵
+init_viewport(...);                          // 视口矩阵
+init_zbuffer(width, height);                 // 初始化 z-buffer
+TGAImage framebuffer(width, height, TGAImage::RGB);
+```
+
+- 设置相机的 ModelView、Perspective、Viewport。
+- 初始化相机 z-buffer。
+- `framebuffer` 保存最终颜色。
+
+然后渲染两个模型：
+
+```cpp
+Model model_head("../Obj/diablo3_pose.obj");
+Model model_floor("../Obj/floor.obj");
+
+BlinnPhongShader shader(light_dir, eye, model_head);
+for (faces in head) rasterize(...);
+
+BlinnPhongShader shader(light_dir, eye, model_floor);
+for (faces in floor) rasterize(...);
+```
+
+👉 得到：
+
+- **framebuffer** = 彩色渲染图（Blinn-Phong 光照）。
+- **zbuffer** = 相机视角下的深度图。
+
+------
+
+## 2️⃣ 阴影贴图生成（光源视角）
+
+首先保存相机矩阵的逆矩阵：
+
+```cpp
+mat<4,4> M = (Viewport * Perspective * ModelView).invert();
+```
+
+- 以后要用它把屏幕像素坐标 **反变换回相机空间**。
+
+然后切换到光源视角：
+
+```cpp
+lookat(light_dir, center, up);             // 光源视角
+init_perspective(norm(light_dir - center));
+init_viewport(...);
+init_zbuffer(shadoww, shadowh);
+```
+
+渲染场景，但这里用 **BlankShader**：
+
+```cpp
+BlankShader shader{model_head};  // 不计算光照，只写深度
+for (faces in head) rasterize(...);
+
+BlankShader shader{model_floor};
+for (faces in floor) rasterize(...);
+```
+
+- `BlankShader` 的 fragment 总是白色 → 颜色没意义。
+- 但是 rasterizer 写入的 **zbuffer** 就是光源能看到的深度。
+
+👉 得到：
+
+- `zbuffer` = **shadow map**（光源视角下的深度图）。
+- 保存为 `shadowmap.tga` 和 `zbuffer2.tga`。
+
+------
+
+## 3️⃣ 后处理（阴影判定）
+
+关键逻辑：
+
+```cpp
+mat<4,4> N = Viewport * Perspective * ModelView; // 光源的投影矩阵
+```
+
+### (a) 屏幕像素 → 相机空间坐标
+
+```cpp
+vec4 fragment = M * vec4{x, y, zbuffer_copy[x+y*width], 1.};
+```
+
+- `(x,y)` = 当前像素位置
+- `zbuffer_copy[...]` = 相机 pass 下该像素的深度
+- 乘以 `M = (VP*MV)^-1` = 从屏幕 → 相机空间坐标
+
+------
+
+### (b) 相机空间 → 光源投影坐标
+
+```cpp
+vec4 q = N * fragment;
+vec3 p = q.xyz() / q.w; 
+```
+
+- `N` = 光源的投影矩阵 (Viewport * Perspective * ModelView)
+- 得到 `p = (p.x, p.y, p.z)`：
+  - `p.x, p.y` → 在 shadow map 上的坐标
+  - `p.z` → 当前像素在**摄像机坐标系**下的深度
+
+------
+
+### (c) 与 shadow map 比较
+
+```cpp
+bool lit = (fragment.z < -100 ||                    // 背景直接亮
+            (p.x<0 || p.x>=shadoww || p.y<0 || p.y>=shadowh) || // 超出shadowmap范围 → 亮
+            (p.z > zbuffer[int(p.x)+int(p.y)*shadoww] - .03));  // 深度比较
+```
+
+解释：
+
+- 如果是背景 → 亮
+- 如果超出 shadow map 范围 → 亮
+- 否则：
+  - `shadowmap_depth = zbuffer[...]`
+  - **约定：你的坐标系里 p.z 越大越靠近光源**
+  - 若 `p.z > shadowmap_depth - bias` → 点比 shadowmap 记录的更靠近光源 → 可见（亮）
+  - 否则 → 被挡住（阴影里）
+
+👉 `lit` = 是否受光照
+
+------
+
+### (d) 阴影标记与后处理
+
+1. 生成 mask 图：
+
+   ```cpp
+   if (!lit) maskimg.set(x,y,{255,255,255,255});
+   ```
+
+   阴影区域显示白色。
+
+2. 调暗阴影区域：
+
+   ```cpp
+   if (!lit) {
+       vec3 a = {c[0], c[1], c[2]};
+       if (norm(a) >= 80) {
+           a = normalized(a) * 80;   // 压低亮度
+           framebuffer.set(x,y,{a[0],a[1],a[2],255});
+       }
+   }
+   ```
+
+   👉 得到带阴影的 `shadow.tga`。
+
+------
+
+# 📌 总结笔记
+
+1. **普通渲染 pass**：相机视角渲染，得到颜色 + 深度。
+2. **阴影贴图 pass**：光源视角渲染，得到 shadow map（深度图）。
+3. **后处理**：
+   - 相机像素 → 相机空间
+   - 相机空间 → 光源空间
+   - 深度比较：
+     - `p.z > shadowmap_depth - bias` → **受光照**
+     - 否则 → **在阴影中**
+4. **输出**：
+   - framebuffer.tga（相机渲染）
+   - zbuffer1.tga（相机深度）
+   - shadowmap.tga / zbuffer2.tga（光源深度）
+   - mask.tga（阴影区域）
+   - shadow.tga（最终带阴影效果的图）
