@@ -193,10 +193,13 @@ int main() {
             vec4 fragment = M * vec4{static_cast<double>(x), static_cast<double>(y),
                                      zbuffer_copy[x + y * width], 1.};
             vec4 q = N * fragment;
-            vec3 p = q.xyz() / q.w;
-            bool lit = (fragment.z < -100 ||
-                        (p.x < 0 || p.x >= shadoww || p.y < 0 || p.y >= shadowh) ||
-                        (p.z > zbuffer[int(p.x) + int(p.y) * shadoww] - .03));
+            vec3 p = q.xyz() / q.w; // 像素在摄像机坐标系下的位置
+            bool lit = (fragment.z < -100 || // 背景，直接亮
+                        (p.x < 0 || p.x >= shadoww || p.y < 0 || p.y >= shadowh) || // 超出 shadow map 范围
+                        (p.z > zbuffer[int(p.x) + int(p.y) * shadoww] - .03)); // 点比 shadowmap 更靠近光源 => 受光照
+            // -0.03 是一个 bias，防止 z-fighting
+            // p.z <= shadowmap_depth + bias → 点比 shadowmap 更远 → 在阴影里
+            // p.z 的方向是: 越大越靠近相机
             mask[x + y * width] = lit;
         }
     }
@@ -205,6 +208,7 @@ int main() {
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             if (mask[x + y * width]) continue;
+            // 阴影的地方显示白色
             maskimg.set(x, y, {255, 255, 255, 255});
         }
     }
@@ -212,12 +216,13 @@ int main() {
 
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
-            if (mask[x + y * width]) continue;
+            if (mask[x + y * width]) continue; // 亮点不处理
+            // 阴影点处理
             TGAColor c = framebuffer.get(x, y);
             vec3 a = {static_cast<double>(c[0]), static_cast<double>(c[1]),
                       static_cast<double>(c[2])};
             if (norm(a) < 80) continue;
-            a = normalized(a) * 80;
+            a = normalized(a) * 80; // 颜色变暗
             framebuffer.set(x, y, {(uint8_t) a[0], (uint8_t) a[1], (uint8_t) a[2], 255});
         }
     }
@@ -225,7 +230,6 @@ int main() {
 
     return 0;
 }
-
 
 ```
 ---
