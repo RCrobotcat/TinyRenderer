@@ -45,6 +45,7 @@ int main() {
         rasterize(clip, shader, framebuffer);   // rasterize the primitive
     }
 
+    // SSAO pass => 一般在后处理阶段
     constexpr double ao_radius = .1;  // ssao ball radius in normalized device coordinates
     constexpr int nsamples = 128;     // number of samples in the ball
     std::random_device rd;
