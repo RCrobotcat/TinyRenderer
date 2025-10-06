@@ -508,3 +508,111 @@ y
 
 * **Clamp** 把输入限制在 `[0,1]`
 * **Hermite 多项式** (`t^2(3-2t)`) 让过渡变得光滑，两端斜率为零。
+
+
+
+```cpp
+	// shadow rendering pass
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    constexpr int n = 1000;
+
+    auto smoothstep = [](double edge0, double edge1, double x)
+    {
+        // smoothstep returns 0 if the input is less than the left edge,
+        double t = std::clamp((x - edge0) / (edge1 - edge0), 0., 1.); // 1 if the input is greater than the right edge,
+        return t * t * (3 - 2 * t);
+        // Hermite interpolation inbetween. The derivative of the smoothstep function is zero at both edges.
+    };
+
+```
+
+这个 `dist` 在你代码的阴影渲染部分里其实是关键的一步 —— 它控制光源在**单位球面上的随机分布**。我们来逐层拆解说明它的定义、用途、以及它和后续计算（`r`, `theta`, `y`）的关系。
+
+------
+
+## 一、定义与作用
+
+```cpp
+std::mt19937 gen(std::random_device{}());
+std::uniform_real_distribution<double> dist(0.0, 1.0);
+```
+
+这两行代码定义了一个**随机数生成器**和一个**均匀分布**对象：
+
+- `std::mt19937 gen(...)`
+   → 使用 **Mersenne Twister** 算法的随机数引擎（高质量伪随机数生成器）。
+   → `std::random_device{}` 提供一个随机种子（通常基于硬件熵源）。
+- `std::uniform_real_distribution<double> dist(0.0, 1.0)`
+   → 定义一个 **连续均匀分布**，范围在 `[0.0, 1.0)`。
+   → 每次调用 `dist(gen)` 就会生成一个 `[0,1)` 区间的随机浮点数。
+
+- 连续均匀分布 ($X \sim U(a,b)$)：
+  $$
+  f(x)=
+   \begin{cases}
+   \dfrac{1}{b-a}, & a \le x \le b\\
+   0, & \text{otherwise}
+   \end{cases}
+  $$
+
+------
+
+## 二、如何使用
+
+```cpp
+double y = dist(gen);
+double theta = 2.0 * M_PI * dist(gen);
+```
+
+这里连续调用两次 `dist(gen)`，生成两个独立随机数：
+
+- 第一个用于 `y`，表示球面上点的“垂直分量”（即 Y 轴方向）
+- 第二个用于 `theta`，表示绕 Y 轴的“经度角”（0 到 2π）
+
+这两个随机数一起确定了光源方向在球面上的随机分布。
+
+------
+
+## 三、与球面坐标的关系
+
+接下来的代码：
+
+```cpp
+double r = std::sqrt(1.0 - y * y);
+vec3 light = vec3{r * std::cos(theta), y, r * std::sin(theta)} * 1.5;
+```
+
+其实是从随机的 `y` 和 `theta` 构造出一个单位球上的点：
+$$
+\begin{cases}
+ x = r \cos \theta \\
+ y = y \\
+ z = r \sin \theta \\
+ r = \sqrt{1 - y^2}
+ \end{cases}
+$$
+这就是球面参数化的形式。
+ 几何上，它等价于随机选取一个球面方向 `(x,y,z)`，然后再放大 1.5 倍形成光源位置。
+
+------
+
+## 四、总结：`dist` 的物理意义
+
+| 代码片段                                               | 作用                   | 对应几何意义                |
+| ------------------------------------------------------ | ---------------------- | --------------------------- |
+| `std::uniform_real_distribution<double> dist(0.0,1.0)` | 定义均匀分布           | 生成 [0,1) 之间的随机浮点数 |
+| `dist(gen)`                                            | 调用生成随机数         | 得到随机采样点              |
+| `y = dist(gen)`                                        | 随机采样球面的垂直坐标 | 控制光源的高度              |
+| `theta = 2*M_PI*dist(gen)`                             | 随机采样球面经度       | 控制光源的旋转角度          |
+| `r = sqrt(1 - y*y)`                                    | 计算球面半径的水平分量 | 保证点在单位球面上          |
+
+------
+
+## 五、直观解释
+
+你可以把它理解为：
+
+> “我在单位球面上随机撒 1000 个点（`n=1000`），每个点代表一个光源方向，然后从每个方向渲染一次场景，看看每个像素能被多少光看到。”
+
+这个过程模拟了**多方向环境光的平均遮挡**，因此最终 `mask` 就近似了 **环境光遮蔽（Ambient Occlusion）**。
